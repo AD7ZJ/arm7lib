@@ -1,0 +1,116 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2008 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     Navigation.txt                                            *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Verifies the distance and course calculation between coordinate pairs
+using the WGS84 datum.
+
+
+Test Results
+------------
+
+
+
+
+Test Code
+---------
+
+typedef struct
+{
+    int32_t lat1, lon1, lat2, lon2;
+    float_t dist, crs12, crs21;
+} TestCase1;
+
+static const TestCase1 TestCaseList[] = 
+{
+    // Same point.
+    { 336180000, -1117430000, 336180000, -1117430000, 0, 0.00, 0.0 },
+    
+    // Very short (< 500') N/S E/W single direction at 0, 90, 180, and 270 degrees.
+    { 336180000, -1117430000, 336185000, -1117430000, 182, 0.00, 180.0 },
+    { 336180000, -1117430000, 336180000, -1117400000, 913, 89.99, 270.00 },
+    { 336180000, -1117430000, 336172000, -1117430000, 291, 180.0, 0.0 },
+    { 336180000, -1117430000, 336180000, -1117440000, 304, 270.00, 89.99 },
+    
+    // Very short (< 500') distance at NE, SE, SW, and NW ordinals.
+    { 336180000, -1117430000, 336184000, -1117434000, 190, 320.08, 140.08 },
+    
+    // Long range, 80 - 115nm
+    { 336180000, -1117430000, 345000000, -1105000000, 494738, 49.20, 229.90 },
+    { 336180000, -1117430000, 325000000, -1105000000, 557247, 136.55, 317.22 },
+    { 336180000, -1117430000, 325000000, -1128000000, 519967, 218.81, 38.24 },
+    { 336180000, -1117430000, 345000000, -1138000000, 700843, 297.83, 116.68 }
+};
+
+typedef struct
+{
+    int32_t lat1, lon1;
+    float_t crs, dist, lat2, lon2;
+} TestCase2;
+
+static const TestCase2 TestCase2List[] = 
+{
+    { 398250000, -862950000, 45.0, 1.2, 39.83915167, -86.27664 }
+};
+ 
+int main(void)
+{
+    uint32_t i;
+    char buffer[80];
+    Navigation p1, p2;
+    
+    SystemControl::GetInstance()->Enable(SystemControl::Clock_60MHz, SystemControl::TIMER1);
+    
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    UART0::GetInstance()->WriteLine ("\r\nNavigation Test Suite");
+    
+    for (i = 0; i < sizeof(TestCaseList) / sizeof(TestCase1); ++i)
+    {
+        p1.SetCoordinates(TestCaseList[i].lat1, TestCaseList[i].lon1);
+        p2.SetCoordinates(TestCaseList[i].lat2, TestCaseList[i].lon2);
+    
+        p1.DistCourse (&p2);
+        
+        sprintf (buffer, "%ld. %ldnm, %ld' (%ld) at %ld degrees (%ld), reverse %ld degrees", 
+                i, (uint32_t) (10. * p1.DistanceNM()), p1.DistanceFeet(), (int32_t) (p1.DistanceFeet() - TestCaseList[i].dist), 
+                (int32_t) (100. * p1.ForwardCourse()), (int32_t) (100. *(p1.ForwardCourse() - TestCaseList[i].crs12)),  ((int32_t) (100. * p1.ReverseCourse())));
+        
+        UART0::GetInstance()->WriteLine(buffer);    
+    }
+    
+    for (i = 0; i < sizeof(TestCase2List) / sizeof(TestCase2); ++i)
+    {
+        p1.SetCoordinates(TestCase2List[i].lat1, TestCase2List[i].lon1);
+        
+        sprintf (buffer, "%ld. %ld %ld  ", i, p1.Latitude(), p1.Longitude());        
+        UART0::GetInstance()->Write(buffer);    
+
+    
+        p1.AddDistCourse (45, 1.2);
+        
+        sprintf (buffer, "%ld. %ld %ld", i, p1.Latitude(), p1.Longitude());        
+        UART0::GetInstance()->WriteLine(buffer);     
+    }
+    
+    UART0::GetInstance()->WriteLine("");
+        
+    
+    for(;;);
+}

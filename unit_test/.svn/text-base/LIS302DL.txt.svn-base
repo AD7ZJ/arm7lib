@@ -1,0 +1,82 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2007 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     LIS302DL.txt                                              *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Displays the X, Y, and Z axes sensor values from the MEMS sensor.
+
+
+Test Results
+------------
+2, -2, 53
+3, -2, 53
+2, -2, 53
+2, -2, 53
+2, -2, 53
+2, -2, 53
+2, -2, 53
+2, -2, 53
+2, -2, 54
+2, -2, 53
+2, -2, 54
+2, -2, 53
+2, -2, 53
+2, -2, 53
+2, -2, 53
+2, -2, 53
+2, -2, 53
+3, -2, 53
+2, -1, 53
+3, -2, 53
+
+
+Test Code
+---------
+int main(void)
+{
+    char buffer[120];
+    LIS302DL *mems = LIS302DL::GetInstance();
+    LIS302DL::LIS302DLData *memsData;
+    
+    SystemControl::GetInstance()->Enable (SystemControl::Clock_12MHz);    
+    
+    // Set the GPIO to the default state.
+    IOPorts::Enable();
+    
+    // Test and debug port.
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    
+    // I2C Bus 0 is the temp sensor, real time clock, and 3D MEMS sensor.
+    I2C0::GetInstance()->Enable();
+    
+    mems->Enable();
+    
+    UART0::GetInstance()->WriteLine ("MEMs Test Started");
+    
+
+    for (;;)
+    {
+        memsData = mems->Read();
+        
+        sprintf (buffer, "%ld, %ld, %ld", memsData->x, memsData->y, memsData->z);
+        UART0::GetInstance()->WriteLine (buffer); 
+         
+        SystemControl::Sleep(200); 
+    }
+}

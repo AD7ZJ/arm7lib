@@ -1,0 +1,90 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2007 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     GPSNavman.txt                                             *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Verify the parsing of the SiRF Star III binary message into a common
+data structure.
+
+
+Test Results
+------------
+17:9:49 11/26/2007 1455 148203000 336187457 -1117340123 14 52875 1734 4 19601
+17:9:50 11/26/2007 1455 148204000 336187456 -1117340122 14 52877 1734 4 20792
+17:9:51 11/26/2007 1455 148205000 336187456 -1117340122 14 52880 1734 4 21459
+17:9:52 11/26/2007 1455 148206000 336187456 -1117340121 14 52883 1735 3 20373
+
+
+Verify UTC to GPS Time of week 14 second offset.
+Verify units of latitude/longitude.
+Verify altitude in cm to feet conversion.
+
+
+Test Code
+---------
+bool_t GPSNavman::HasData()
+{
+    return UART1::GetInstance()->IsCharReady();
+}
+
+uint8_t GPSNavman::ReadData()
+{
+    return UART1::GetInstance()->ReadChar();
+}
+
+void GPSNavman::WriteData(uint8_t data)
+{
+    UART1::GetInstance()->WriteChar (data);
+}
+
+int main(void)
+{
+    char buffer[120];
+    
+    SystemControl::GetInstance()->Enable (SystemControl::Clock_12MHz);
+    
+    GPSNavman *gps = GPSNavman::GetInstance();
+    GPSData *gpsData = gps->Data();
+
+    // UART 0 is console serial port, UART 1 is connected to the GPS engine.
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    UART1::GetInstance()->Enable(UART1::BaudRate57600);
+    
+    UART0::GetInstance()->WriteLine ("GPS Engine Unit Test");
+    
+    for (;;)
+    {
+        gps->Update();
+
+        if (gps->IsDataReady())
+        {
+            sprintf (buffer, "%d:%d:%d %d/%d/%d ", gpsData->hours, gpsData->minutes, gpsData->seconds, gpsData->month, gpsData->day, gpsData->year);
+            UART0::GetInstance()->Write (buffer);
+
+            sprintf (buffer, "%ld %ld %ld %ld %d ", gpsData->weekNumber, gpsData->timeOfWeek, gpsData->latitude, gpsData->longitude, gpsData->dop);
+            UART0::GetInstance()->Write (buffer);
+            
+            sprintf (buffer, "%ld %ld ", gpsData->altitude, gpsData->AltitudeFeet());
+            UART0::GetInstance()->Write (buffer);  
+            
+            sprintf (buffer, "%d %d", gpsData->speed, gpsData->heading);
+            UART0::GetInstance()->WriteLine (buffer);
+        } // END if
+    } // END for
+}

@@ -1,0 +1,109 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2007 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     M25P80.txt                                                *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Verify we can read, write, and erase the external flash memory chip using
+the SPI1 interface.
+
+
+Test Results
+------------
+Flash Signature 0x13
+Current flash contents
+ff ff ff ff c0 4e 4f 50 e7 79 8c 96 c2 57 3d 25
+5c 02 ae 24 ff ff ff ff ff ff ff ff ff ff ff ff
+c0 4e 4f 50 e7 79 8c 96 c2 57 3d 25 5c 02 ae 24
+ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+Erasing the flash...
+Data after erase
+ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+Data after writing first block
+ff ff ff ff c0 4e 4f 50 e7 79 8c 96 c2 57 3d 25
+5c 02 ae 24 ff ff ff ff ff ff ff ff ff ff ff ff
+ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+Data after writing second block
+ff ff ff ff c0 4e 4f 50 e7 79 8c 96 c2 57 3d 25
+5c 02 ae 24 ff ff ff ff ff ff ff ff ff ff ff ff
+c0 4e 4f 50 e7 79 8c 96 c2 57 3d 25 5c 02 ae 24
+ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+Power cycle the system and verify the flash contents after power cycle
+
+Test Code
+---------
+void DataDisplay(const char *header)
+{
+    uint32_t i;
+    uint8_t data[64];
+    char buffer[80];
+    
+    UART0::GetInstance()->WriteLine (header);
+    
+    M25P80::GetInstance()->ReadBlock(0, data, 64);
+    
+    for (i = 0; i < 64; ++i)
+    {
+        sprintf (buffer, "%02x ", data[i]);
+        UART0::GetInstance()->Write (buffer);
+        
+        if (((i + 1) % 16) == 0)
+            UART0::GetInstance()->WriteLine ("");
+    }
+}
+
+int main(void)
+{
+    uint8_t data[] = { 0xc0, 0x4e, 0x4f, 0x50, 0xe7, 0x79, 0x8c, 0x96, 0xc2, 0x57, 0x3d, 0x25, 0x5c, 0x02, 0xae, 0x24 };
+    char buffer[120];
+    
+    SystemControl::GetInstance()->Enable (SystemControl::Clock_12MHz);    
+    
+    // Set the GPIO to the default state.
+    IOPorts::Enable();
+    
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    
+    SPI1::GetInstance()->Enable();
+
+    sprintf (buffer, "Flash Signature 0x%lx", M25P80::GetInstance()->ReadSignature());
+    UART0::GetInstance()->WriteLine (buffer);
+    
+    DataDisplay("Current flash contents");
+    
+    UART0::GetInstance()->WriteLine ("Erasing the flash...");
+    M25P80::GetInstance()->BulkErase();
+    
+    DataDisplay("Data after erase");
+    
+    M25P80::GetInstance()->WriteBlock(4, data, sizeof(data));
+    
+    DataDisplay("Data after writing first block");
+
+    M25P80::GetInstance()->WriteBlock(32, data, sizeof(data));
+
+    DataDisplay("Data after writing second block");
+    
+    UART0::GetInstance()->WriteLine ("Power cycle the system and verify the flash contents after power cycle");
+    
+    for (;;);
+}

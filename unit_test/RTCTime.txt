@@ -1,0 +1,85 @@
+/***************************************************************************
+ *                                                                         *
+ *  This program is free software; you can redistribute it and/or modify   *
+ *  it under the terms of the GNU General Public License as published by   *
+ *  the Free Software Foundation; either version 2 of the License, or      *
+ *  (at your option) any later version.                                    *
+ *                                                                         *
+ *  This program is distributed in the hope that it will be useful,        *
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of         *
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          *
+ *  GNU General Public License for more details.                           *
+ *                                                                         *
+ *  You should have received a copy of the GNU General Public License      *
+ *  along with this program; if not, write to the Free Software            *
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111 USA    *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *               (c) Copyright, 1997-2012, ANSR                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     RTCTime.txt                                               *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Verifies the conversion from GPS week number and Time Of Week to a Julian 
+date and time.
+
+
+Test Results
+------------
+
+RTCTime object unit test
+1/6/1980  00:00:00  0    << GPS Epoch
+1/6/1980  00:00:01  0    << GPS Epoch plus 1 second
+1/13/1980  00:00:00  0   << GPS Epoch plus 1 week
+
+7/31/2008  22:22:56  4   << 1 day prior to month roll over
+8/1/2008  22:22:56  5    << First day of the month
+8/2/2008  22:22:56  6    << Second day of the month
+
+8/10/2008  00:00:05  0   << The start of a new week
+8/9/2008  23:59:51  6    << Roll back end of the week into previous week with UTC offset
+
+
+Test Code
+---------
+
+void Convert(uint32_t gpsWeekNumber, uint32_t gpsTimeOfWeek, uint32_t utcOffset)
+{
+    char buffer[80];
+    
+    RTCTime gps(gpsWeekNumber, gpsTimeOfWeek, utcOffset);
+    
+    sprintf(buffer, "%d/%d/%d  %02d:%02d:%02d  %d", gps.month, gps.day, gps.year, gps.hours, gps.minutes, gps.seconds, gps.dayOfWeek);
+    UART0::GetInstance()->WriteLine(buffer);
+}
+
+int main(void)
+{
+    SystemControl::GetInstance()->Enable(SystemControl::Clock_24MHz, SystemControl::TIMER0);
+    
+    UART0::GetInstance()->Enable(UART0::BaudRate9600);    
+    
+    UART0::GetInstance()->WriteLine("RTCTime object unit test");
+    
+    Convert (0, 0, 0);
+    Convert (0, 1, 0);
+    Convert (1, 0, 0);
+    UART0::GetInstance()->WriteLine("");
+    
+    Convert (1490, 598976 - 86400 * 2, 0);
+    Convert (1490, 598976 - 86400, 0);
+    Convert (1490, 598976, 0);
+    UART0::GetInstance()->WriteLine("");
+
+    Convert (1492, 5, 0);
+    Convert (1492, 5, 14);
+    
+    for (;;);
+}
+

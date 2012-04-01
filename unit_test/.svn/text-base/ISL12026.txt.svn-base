@@ -1,0 +1,164 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2008 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     ISL12026.txt                                              *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Test the Real Time Clock time set and alarm functions.  Remove all power
+before starting the test.
+
+
+Test Results
+------------
+
+RTC Power Failure                  << Detect the power failure.
+Wake up time - 00:00:00 1/6/1980   << Verify we set the GPS epoch as the default time.
+23:59:55 12/31/2007                << Verify we can set the time and it counts up.
+23:59:56 12/31/2007
+23:59:57 12/31/2007
+23:59:58 12/31/2007
+23:59:59 12/31/2007
+00:00:00 1/1/2008                  << Verify everything rolls at the end of the year.
+00:00:01 1/1/2008
+00:00:02 1/1/2008
+00:00:03 1/1/2008
+14:56:53 10/18/2008                << Set another random time in the year and set the alarm to 17:57:02
+14:56:54 10/18/2008 
+14:56:55 10/18/2008 
+14:56:56 10/18/2008 
+14:56:57 10/18/2008 
+14:56:58 10/18/2008 
+14:56:59 10/18/2008 
+14:57:00 10/18/2008 
+14:57:01 10/18/2008 
+14:57:02 10/18/2008 Alarm            << Verify the alarm goes off
+14:57:03 10/18/2008 
+14:57:04 10/18/2008 
+14:57:05 10/18/2008 
+14:57:06 10/18/2008 
+Entering sleep mode                  << verify the device powers off.
+
+RTC Good                             << verify the device powers on and the RTC is good.
+Wake up time - 14:57:15 10/18/2008   << Verify the RTC is the same as the alarm time.
+23:59:55 12/31/2007
+23:59:56 12/31/2007
+23:59:57 12/31/2007
+23:59:58 12/31/2007
+
+
+Test Code
+---------
+int main(void)
+{
+    uint32_t lastTimeSeconds;
+    const RTCTime *time;
+    RTCTime alarmTime;
+    GPSData gps;
+    ISL12026 *rtc;
+
+    SystemControl::GetInstance()->Enable(SystemControl::Clock12MHz, SystemControl::Timer1Base);
+
+    // Set the GPIO to the default state.
+    IOPorts::Enable();
+
+    // Test and debug port.
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+
+    // I2C Bus 0 is the real time clock.
+    I2C0::GetInstance()->Enable();
+
+    UART0::GetInstance()->WriteLine ("");
+
+    rtc = ISL12026::GetInstance();
+
+    if (rtc->IsLowPower())
+        UART0::GetInstance()->WriteLine ("RTC Power Failure");
+    else
+        UART0::GetInstance()->WriteLine ("RTC Good");
+
+
+    time = rtc->GetTime();
+    UART0::GetInstance()->WriteLine ("Wake up time - %02d:%02d:%02d %d/%d/%d", time->hours, time->minutes, time->seconds, time->month, time->day, time->year);
+
+    gps.hours = 23;
+    gps.minutes = 59;
+    gps.seconds = 55;
+    gps.month = 12;
+    gps.day = 31;
+    gps.year = 2007;
+    gps.fixType = GPSData::Fix3D;
+
+    rtc->SetTime(&gps);
+    rtc->DisableAlarm();
+
+    lastTimeSeconds = -1;
+
+    do
+    {
+        time = rtc->GetTime();
+
+        if (time->seconds != lastTimeSeconds)
+        {
+            lastTimeSeconds = time->seconds;
+
+            UART0::GetInstance()->WriteLine ("%02d:%02d:%02d %d/%d/%d", time->hours, time->minutes, time->seconds, time->month, time->day, time->year);
+        } // END if
+
+        SystemControl::Sleep(100);
+    } while (time->seconds != 3);
+
+    gps.hours = 14;
+    gps.minutes = 56;
+    gps.seconds = 53;
+    gps.month = 10;
+    gps.day = 18;
+    gps.year = 2008;
+
+    rtc->SetTime(&gps);
+
+    alarmTime.hours = 14;
+    alarmTime.minutes = 57;
+    alarmTime.seconds = 2;
+
+    rtc->EnableAlarm (&alarmTime);
+
+    do
+    {
+        time = rtc->GetTime();
+
+        if (time->seconds != lastTimeSeconds)
+        {
+            lastTimeSeconds = time->seconds;
+
+            UART0::GetInstance()->WriteLine ("%02d:%02d:%02d %d/%d/%d %s", time->hours, time->minutes, time->seconds, time->month, time->day, time->year, rtc->IsAlarm() ? "Alarm" : "");
+        } // END if
+
+        SystemControl::Sleep(100);
+    } while (time->seconds != 6);
+
+
+    // Set the alarm to a future time.
+    alarmTime.seconds = 15;
+
+    rtc->EnableAlarm (&alarmTime);
+
+    UART0::GetInstance()->WriteLine ("Entering sleep mode");
+
+    IOPorts::PowerOff();
+}
+

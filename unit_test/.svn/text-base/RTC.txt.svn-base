@@ -1,0 +1,77 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2007 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     RTC.txt                                                   *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Verify we can read and set the on board RTC (Real Time Clock).
+
+
+Test Results
+------------
+23:59:55 12/31/2007  << Set time/date to just before the new year.
+23:59:56 12/31/2007
+23:59:57 12/31/2007
+23:59:58 12/31/2007
+23:59:59 12/31/2007
+00:00:00 1/1/2008     << Make sure everything rolls at midnight UTC.
+00:00:01 1/1/2008
+00:00:02 1/1/2008
+00:00:03 1/1/2008
+00:00:04 1/1/2008
+
+Test Code
+---------
+int main(void)
+{
+    uint8_t lastSeconds;
+    char buffer[120];
+    
+    SystemControl::GetInstance()->Enable (SystemControl::Clock_12MHz);    
+    
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    RTC::GetInstance()->Enable();
+    
+    GPSData gps;
+    
+    gps.hours = 23;
+    gps.minutes = 59;
+    gps.seconds = 55;
+    gps.month = 12;
+    gps.day = 31;
+    gps.year = 2007;
+    gps.fixType = GPSData::FIX_3D;
+    
+    RTC::GetInstance()->Set (&gps);
+    
+    lastSeconds = -1;
+    
+    for (;;)
+    {
+        RTCTime *time = RTC::GetInstance()->Get(); 
+        
+        // Only display the time when it changes.
+        if (lastSeconds != time->seconds)
+        {
+            lastSeconds = time->seconds;
+        
+            sprintf (buffer, "%02d:%02d:%02d %d/%d/%d ", time->hours, time->minutes, time->seconds, time->month, time->day, time->year);
+            UART0::GetInstance()->WriteLine (buffer);
+        } // END if
+    } // END for
+}

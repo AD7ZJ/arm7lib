@@ -1,0 +1,142 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2007 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     RV8564C2.txt                                              *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Test the Real Time Clock time set and alarm functions.
+
+
+Test Results
+------------
+RTC Test Started
+23:59:55 12/31/2007    << Verify we can set the time and it counts up.
+23:59:56 12/31/2007
+23:59:57 12/31/2007
+23:59:58 12/31/2007
+23:59:59 12/31/2007
+00:00:00 1/1/2008      << Verify everything rolls at the end of the year.
+00:00:01 1/1/2008
+00:00:02 1/1/2008
+00:00:03 1/1/2008
+17:46:53 7/6/2007      << Set to another random time in the year and set the alarm to 17:47
+17:46:54 7/6/2007
+17:46:55 7/6/2007
+17:46:56 7/6/2007
+17:46:57 7/6/2007
+17:46:58 7/6/2007
+17:46:59 7/6/2007
+17:47:00 7/6/2007 Alarm   << Verify the alarm goes off
+17:47:01 7/6/2007
+17:47:02 7/6/2007
+17:47:03 7/6/2007
+Entering sleep mode    << verify the device powers off.
+RTC Test Started
+23:59:55 12/31/2007    << Verify it wakes up in 7 seconds.
+
+
+Test Code
+---------
+int main(void)
+{
+    char buffer[120];
+    uint32_t lastTimeSeconds;
+    RTCTime *time;
+    RTCTime alarmTime;
+    GPSData gps;
+    
+    SystemControl::GetInstance()->Enable (SystemControl::Clock_12MHz);    
+    
+    // Set the GPIO to the default state.
+    IOPorts::Enable();
+    
+    // Test and debug port.
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    
+    // I2C Bus 0 is the temp sensor, real time clock, and 3D MEMS sensor.
+    I2C0::GetInstance()->Enable();
+    
+    UART0::GetInstance()->WriteLine ("RTC Test Started");
+    
+    IOPorts::StatusLED(IOPorts::LED_POWER, true);
+
+    gps.hours = 23;
+    gps.minutes = 59;
+    gps.seconds = 55;
+    gps.month = 12;
+    gps.day = 31;
+    gps.year = 2007;
+    gps.fixType = GPSData::FIX_3D;
+    
+    RV8564C2::GetInstance()->SetTime(&gps);
+    
+    lastTimeSeconds = -1;
+    
+    do
+    {
+        time = RV8564C2::GetInstance()->GetTime();
+        
+        if (time->seconds != lastTimeSeconds)
+        {
+            lastTimeSeconds = time->seconds;
+            
+            sprintf (buffer, "%02d:%02d:%02d %d/%d/%d", time->hours, time->minutes, time->seconds, time->month, time->day, time->year);
+            UART0::GetInstance()->WriteLine (buffer);
+        } // END if
+        
+        SystemControl::Sleep(100);
+    } while (time->seconds != 3);
+    
+    gps.hours = 17;
+    gps.minutes = 46;
+    gps.seconds = 53;
+    gps.month = 7;
+    gps.day = 6;
+    gps.year = 2007;  
+    
+    RV8564C2::GetInstance()->SetTime(&gps);
+    
+    alarmTime.hours = 17;
+    alarmTime.minutes = 47;
+    
+    RV8564C2::GetInstance()->SetAlarm (&alarmTime);      
+    
+    do
+    {
+        time = RV8564C2::GetInstance()->GetTime();
+        
+        if (time->seconds != lastTimeSeconds)
+        {
+            lastTimeSeconds = time->seconds;
+            
+            sprintf (buffer, "%02d:%02d:%02d %d/%d/%d %s", time->hours, time->minutes, time->seconds, time->month, time->day, time->year, RV8564C2::GetInstance()->IsAlarm() ? "Alarm" : "");
+            UART0::GetInstance()->WriteLine (buffer);
+        } // END if
+        
+        SystemControl::Sleep(100);
+    } while (time->seconds != 3);
+    
+    
+    RV8564C2::GetInstance()->SetTime(&gps);
+    RV8564C2::GetInstance()->SetAlarm (&alarmTime); 
+    
+    UART0::GetInstance()->WriteLine ("Entering sleep mode");
+    
+    IOPorts::PowerOff();
+}
+

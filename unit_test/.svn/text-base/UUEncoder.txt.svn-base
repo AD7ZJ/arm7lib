@@ -1,0 +1,49 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2008 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     UUEncoder.txt                                             *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Verifies the encoding and decoding of a binary data block using the Uuencode
+convention.
+
+
+Test Code
+---------
+
+int main(void)
+{
+    uint8_t input[12] = { 0x01, 0x02, 0x03, 0xfe, 0xdc, 0xba, 0x53, 0x66, 0x04, 0xbf, 0xc0, 0x8f };
+    char text[25];
+    uint8_t output[12];
+
+    SystemControl::GetInstance()->Enable(SystemControl::Clock24MHz, SystemControl::Timer0Base);
+    
+    UART0::GetInstance()->Enable(UART0::BaudRate9600);    
+    
+    UART0::GetInstance()->WriteLine("UUEncoder.txt unit test");
+
+    UUEncoder::Encode (input, text, sizeof(input));
+
+    UART0::GetInstance()->WriteLine (text);
+
+    UUEncoder::Decode (text, output);
+    
+    for (;;);
+}
+

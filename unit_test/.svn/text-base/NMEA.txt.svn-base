@@ -1,0 +1,90 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2007 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     NMEA.txt                                                  *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Verifies the correct generation of the NMEA sentences.
+
+
+Test Results
+------------
+GPS Unit Test Case
+$GPGGA,152433,3330.0000,N,11130.0000,W,0,08,1.7,508.0,M,,M,,*4F
+$GPRMC,152433,V,3330.0000,N,11130.0000,W,150.1,90.2,261107,,*26
+
+$GPGGA,152433,3312.3456,S,11159.9875,E,1,08,1.7,508.0,M,,M,,*49
+$GPRMC,152433,A,3312.3456,S,11159.9875,E,19.4,359.5,261107,,*3E
+
+Verify correct UTC time.
+Verify conversion from GPS lat/long units to NMEA units.
+Verify E/W and N/S ordinals.
+Verify speed in knots.
+Verify heading in degrees.
+Verify correct date.
+Verify fix/no-fix flags.
+
+Test Code
+---------
+int main(void)
+{
+    char buffer[120];
+    
+    SystemControl::GetInstance()->SetClock (SystemControl::Clock_12MHz);    
+    
+    UART0::GetInstance()->Enable();
+    
+    GPSData gps;
+    
+    gps.altitude = 50810;
+    gps.latitude = 335000000;
+    gps.longitude = -1115000000;
+    gps.hours = 15;
+    gps.minutes = 24;
+    gps.seconds = 33;
+    gps.month = 11;
+    gps.day = 26;
+    gps.year = 2007;
+    gps.heading = 9025;
+    gps.speed = 7717;
+    gps.dop = 17;
+    gps.fixType = GPSData::NO_FIX;
+    gps.trackedSats = 8;
+    
+    UART0::GetInstance()->WriteLine ("GPS Unit Test Case");
+    
+    NMEA::GPGGA(&gps, buffer);
+    UART0::GetInstance()->WriteLine (buffer);
+    NMEA::GPRMC(&gps, buffer);
+    UART0::GetInstance()->WriteLine (buffer);
+    UART0::GetInstance()->WriteLine ("");
+
+    gps.fixType = GPSData::FIX_2D;
+    gps.latitude = -332057600;
+    gps.longitude = 1119997933;
+    gps.heading = 35950;
+    gps.speed = 1000;   
+    
+    NMEA::GPGGA(&gps, buffer);
+    UART0::GetInstance()->WriteLine (buffer);
+    NMEA::GPRMC(&gps, buffer);
+    UART0::GetInstance()->WriteLine (buffer);
+    UART0::GetInstance()->WriteLine ("");
+    
+    for (;;);    
+}

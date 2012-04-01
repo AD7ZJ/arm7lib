@@ -1,0 +1,53 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2007 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     Program.cs                                                *
+ *                                                                         *
+ ***************************************************************************/
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.IO;
+
+namespace ConvertHeader
+{
+    /**
+     * Convert C style processor register definitions to C++ constants.
+     */
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            String buffer;
+
+            if (args.Length != 1)
+            {
+                Console.WriteLine("usage: HeaderFileName.h");
+                return;
+            }
+
+            StreamReader header = new StreamReader(args[0]);
+
+            while ((buffer = header.ReadLine()) != null)
+            {
+                Console.WriteLine(buffer);
+
+            }
+
+            header.Close();
+        }
+    }
+}

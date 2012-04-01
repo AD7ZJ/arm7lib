@@ -1,0 +1,481 @@
+/***************************************************************************
+ *                                                                         *
+ *  This program is free software; you can redistribute it and/or modify   *
+ *  it under the terms of the GNU General Public License as published by   *
+ *  the Free Software Foundation; either version 2 of the License, or      *
+ *  (at your option) any later version.                                    *
+ *                                                                         *
+ *  This program is distributed in the hope that it will be useful,        *
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of         *
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          *
+ *  GNU General Public License for more details.                           *
+ *                                                                         *
+ *  You should have received a copy of the GNU General Public License      *
+ *  along with this program; if not, write to the Free Software            *
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111 USA    *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *               (c) Copyright, 2011-2012, Elijah Brown                    *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     AES.txt                                                   *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+Verify the Monte Carlo test runs to completion for key sizes of 128,
+192, and 256 for encryption and decryption in ECB, CBC, and CFB modes.
+This test runs 72 million encryption/descryption cycles, so it takes
+10 minutes to run to completion.
+
+The results are checked against the test vectors contained in rijndael-vals.zip.
+The output format of the test that shows the KEY, PT, CT, and IV values is 
+formatted the same as the test vectors file.  So a simple text comparison
+tool will match 100% of the output.
+
+
+Test Results
+------------
+Electronic Codebook (ECB) Mode - ENCRYPTION / Monte Carlo Test
+Key Size = 128
+I=0
+KEY=00000000000000000000000000000000
+PT=00000000000000000000000000000000
+CT=C34C052CC0DA8D73451AFE5F03BE297F
+
+I=1
+KEY=C34C052CC0DA8D73451AFE5F03BE297F
+PT=C34C052CC0DA8D73451AFE5F03BE297F
+
+...
+
+I=399
+KEY=DF2FC68C50A1A6EA6EBF19DDFCFAC887
+PT=2C290AE7C65B6E5BBAA32DE577DBA343
+CT=A04377ABE259B0D0B5BA2D40A501971B        <<
+
+Final CT=A04377ABE259B0D0B5BA2D40A501971B  << Verify step 399 is the same
+
+
+Test Code
+---------
+void Display (const char *text, const uint8_t *data, uint32_t length = 16)
+{
+    uint32_t i;
+    char buffer[80];
+    
+    UART0::GetInstance()->Write (text);
+    
+    for (i = 0; i < length; ++i)
+    {
+        sprintf (buffer, "%02X", data[i]);
+        UART0::GetInstance()->Write (buffer);
+    }    
+
+    UART0::GetInstance()->WriteLine ("");
+}
+
+int main(void)
+{
+    uint32_t i, j, value, count;
+    char buffer[120];
+    AES aes;
+    
+    uint8_t key[32];
+    
+    uint8_t redText[AES::BLOCK_SIZE];
+    uint8_t prevRedText[AES::BLOCK_SIZE];
+    uint8_t blackText[AES::BLOCK_SIZE];
+    uint8_t expandedKey[AES::BLOCK_SIZE];
+    uint8_t iv[AES::BLOCK_SIZE];
+    
+    uint8_t blackKATText[3 * AES::BLOCK_SIZE];
+    uint8_t redKATText[3 * AES::BLOCK_SIZE];
+    
+    SystemControl::GetInstance()->Enable(SystemControl::Clock_60MHz, SystemControl::TIMER0);
+    
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    
+    do
+    {
+        UART0::GetInstance()->WriteLine ("AES Test Suite.  Do you want to run the (l)ong or (s)hort test");
+    
+        while (!UART0::GetInstance()->IsCharReady());
+        
+        value = UART0::GetInstance()->ReadChar();
+    } while (value != 'l' && value != 's');
+    
+    if (value == 'l')
+        count = 400;
+    else 
+        count = 3;
+    
+    UART0::GetInstance()->WriteLine ("\r\n\r\nElectronic Codebook (ECB) Mode - ENCRYPTION / Monte Carlo Test");
+    
+    // NIST Monte Carlo Test for key size = 128. 
+    UART0::GetInstance()->WriteLine ("Key Size = 128");
+    
+    memset (key, 0, sizeof(key));
+    memset (blackText, 0, sizeof(blackText));
+    
+    for (i = 0; i < count; ++i) 
+    {
+        // We'll show the results in the same format as the test vectors document.
+        sprintf (buffer, "I=%lu", i);
+        UART0::GetInstance()->WriteLine (buffer);    
+        
+        Display ("KEY=", key);
+        Display ("PT=", blackText);
+        
+        aes.SetEncryptionKey (key, AES::KEY_128BITS);
+        
+        for (j = 0; j < 10000; ++j)
+        {
+            aes.CryptECB (AES::ENCRYPT, blackText, redText); 
+            memcpy (blackText, redText, sizeof(blackText));    
+        }
+            
+        Display ("CT=", redText);
+        
+        UART0::GetInstance()->WriteLine ("");    
+       
+        for (j = 0; j < 16; ++j)
+            key[j] = key[j] ^ redText[j];
+    }
+    
+    UART0::GetInstance()->WriteLine("Final CT=A04377ABE259B0D0B5BA2D40A501971B");
+    
+    
+    
+    UART0::GetInstance()->WriteLine ("\r\n\r\nElectronic Codebook (ECB) Mode - ENCRYPTION / Monte Carlo Test");
+    
+    // NIST Monte Carlo Test for key size = 256. 
+    UART0::GetInstance()->WriteLine ("Key Size = 256");
+    
+    memset (key, 0, sizeof(key));
+    memset (blackText, 0, sizeof(blackText));
+    
+    for (i = 0; i < count; ++i) 
+    {
+        // We'll show the results in the same format as the test vectors document.
+        sprintf (buffer, "I=%lu", i);
+        UART0::GetInstance()->WriteLine (buffer);    
+        
+        Display ("KEY=", key, 32);
+        Display ("PT=", blackText);
+        
+        aes.SetEncryptionKey (key, AES::KEY_256BITS);
+        
+        for (j = 0; j < 10000; ++j)
+        {
+            aes.CryptECB (AES::ENCRYPT, blackText, redText); 
+            memcpy (blackText, redText, sizeof(blackText));  
+            
+            if (j == 9998)
+                memcpy (expandedKey, redText, sizeof(expandedKey));
+        }
+            
+        Display ("CT=", redText);
+        
+        UART0::GetInstance()->WriteLine ("");    
+       
+        for (j = 0; j < 16; ++j)
+        {
+            key[j] = key[j] ^ expandedKey[j];
+            key[j + 16] = key[j + 16] ^ redText[j];
+        } // END for
+    }
+    
+    UART0::GetInstance()->WriteLine("Final CT=1F6763DF807A7E70960D4CD3118E601A");
+    
+        
+    UART0::GetInstance()->WriteLine ("\r\n\r\nElectronic Codebook (ECB) Mode - DECRYPTION / Monte Carlo Test");
+    
+    // NIST Monte Carlo Test for key size = 128. 
+    UART0::GetInstance()->WriteLine ("Key Size = 128");
+    
+    memset (key, 0, sizeof(key));
+    memset (redText, 0, sizeof(redText));
+    
+    for (i = 0; i < count; ++i) 
+    {
+        // We'll show the results in the same format as the test vectors document.
+        sprintf (buffer, "I=%lu", i);
+        UART0::GetInstance()->WriteLine (buffer);    
+        
+        Display ("KEY=", key);
+        Display ("CT=", redText);
+        
+        aes.SetDecryptionKey (key, AES::KEY_128BITS);
+        
+        for (j = 0; j < 10000; ++j)
+        {
+            aes.CryptECB (AES::DECRYPT, redText, blackText); 
+            memcpy (redText, blackText, sizeof(redText));    
+        }
+            
+        Display ("PT=", blackText);
+        
+        UART0::GetInstance()->WriteLine ("");    
+       
+        for (j = 0; j < 16; ++j)
+            key[j] = key[j] ^ blackText[j];
+    }
+    
+    UART0::GetInstance()->WriteLine("Final PT=F5BF8B37136F2E1F6BEC6F572021E3BA");  
+    
+    
+    UART0::GetInstance()->WriteLine ("\r\n\r\nElectronic Codebook (ECB) Mode - DECRYPTION / Monte Carlo Test");
+    
+    // NIST Monte Carlo Test for key size = 256. 
+    UART0::GetInstance()->WriteLine ("Key Size = 256");
+    
+    memset (key, 0, sizeof(key));
+    memset (redText, 0, sizeof(redText));
+    
+    for (i = 0; i < count; ++i) 
+    {
+        // We'll show the results in the same format as the test vectors document.
+        sprintf (buffer, "I=%lu", i);
+        UART0::GetInstance()->WriteLine (buffer);    
+        
+        Display ("KEY=", key, 32);
+        Display ("CT=", redText);
+        
+        aes.SetDecryptionKey (key, AES::KEY_256BITS);
+        
+        for (j = 0; j < 10000; ++j)
+        {
+            aes.CryptECB (AES::DECRYPT, redText, blackText); 
+            memcpy (redText, blackText, sizeof(redText));   
+            
+            if (j == 9998)
+                memcpy (expandedKey, blackText, sizeof(expandedKey));            
+        }
+            
+        Display ("PT=", blackText);
+        
+        UART0::GetInstance()->WriteLine ("");    
+       
+        for (j = 0; j < 16; ++j)
+        {
+            key[j] = key[j] ^ expandedKey[j];
+            key[j + 16] = key[j + 16] ^ blackText[j];
+        } // END for
+    }
+    
+    UART0::GetInstance()->WriteLine("Final PT=4DE0C6DF7CB1697284604D60271BC59A");      
+    
+    
+    UART0::GetInstance()->WriteLine ("\r\n\r\nCipher Block Chaining (CBC) Mode - ENCRYPTION / Monte Carlo Test");
+    
+    // NIST Monte Carlo Test for key size = 128. 
+    UART0::GetInstance()->WriteLine ("Key Size = 128");
+    
+    memset (key, 0, sizeof(key));
+    memset (blackText, 0, sizeof(blackText));
+    memset (iv, 0, sizeof(iv));
+    
+    for (i = 0; i < count; ++i) 
+    {
+        // We'll show the results in the same format as the test vectors document.
+        sprintf (buffer, "I=%lu", i);
+        UART0::GetInstance()->WriteLine (buffer);    
+        
+        Display ("KEY=", key);
+        Display ("IV=", iv);
+        Display ("PT=", blackText);
+        
+        aes.SetEncryptionKey (key, AES::KEY_128BITS);
+        
+        for (j = 0; j < 10000; ++j) 
+        {
+            aes.CryptCBC (AES::ENCRYPT, AES::BLOCK_SIZE, iv, blackText, redText); 
+            
+            if (j == 0)
+                memcpy (blackText, iv, sizeof(iv));
+            else
+                memcpy (blackText, prevRedText, sizeof(blackText));
+            
+            memcpy (prevRedText, redText, sizeof(prevRedText));
+            
+            memcpy (iv, redText, sizeof(iv));
+
+        }
+            
+        Display ("CT=", redText);
+        
+        UART0::GetInstance()->WriteLine ("");    
+       
+        for (j = 0; j < 16; ++j)
+            key[j] = key[j] ^ redText[j];
+    }
+    
+    UART0::GetInstance()->WriteLine("Final CT=2F844CBF78EBA70DA7A49601388F1AB6");   
+    
+    
+    UART0::GetInstance()->WriteLine ("\r\n\r\nCipher Block Chaining (CBC) Mode - ENCRYPTION / Monte Carlo Test");
+    
+    // NIST Monte Carlo Test for key size = 256. 
+    UART0::GetInstance()->WriteLine ("Key Size = 256");
+    
+    memset (key, 0, sizeof(key));
+    memset (blackText, 0, sizeof(blackText));
+    memset (iv, 0, sizeof(iv));
+    
+    for (i = 0; i < count; ++i) 
+    {
+        // We'll show the results in the same format as the test vectors document.
+        sprintf (buffer, "I=%lu", i);
+        UART0::GetInstance()->WriteLine (buffer);    
+        
+        Display ("KEY=", key, 32);
+        Display ("IV=", iv);
+        Display ("PT=", blackText);
+        
+        aes.SetEncryptionKey (key, AES::KEY_256BITS);
+        
+        for (j = 0; j < 10000; ++j) 
+        {
+            aes.CryptCBC (AES::ENCRYPT, AES::BLOCK_SIZE, iv, blackText, redText); 
+            
+            if (j == 0)
+                memcpy (blackText, iv, sizeof(iv));
+            else
+                memcpy (blackText, prevRedText, sizeof(blackText));
+            
+            memcpy (prevRedText, redText, sizeof(prevRedText));
+            
+            memcpy (iv, redText, sizeof(iv));
+            
+            if (j == 9998)
+                memcpy (expandedKey, redText, sizeof(expandedKey));              
+        }
+            
+        Display ("CT=", redText);
+        
+        UART0::GetInstance()->WriteLine ("");    
+       
+        for (j = 0; j < 16; ++j)
+        {
+            key[j] = key[j] ^ expandedKey[j];
+            key[j + 16] = key[j + 16] ^ redText[j];
+        } // END for
+    }
+    
+    UART0::GetInstance()->WriteLine("Final CT=C0FEFFF07506A0B4CD7B8B0CF25D3664");    
+    
+    
+    UART0::GetInstance()->WriteLine ("\r\n\r\nCipher Block Chaining (CBC) Mode - DECRYPTION / Monte Carlo Test");
+    
+    // NIST Monte Carlo Test for key size = 128. 
+    UART0::GetInstance()->WriteLine ("Key Size = 128");
+    
+    memset (key, 0, sizeof(key));
+    memset (redText, 0, sizeof(redText));
+    memset (iv, 0, sizeof(iv));
+    
+    for (i = 0; i < count; ++i) 
+    {
+        // We'll show the results in the same format as the test vectors document.
+        sprintf (buffer, "I=%lu", i);
+        UART0::GetInstance()->WriteLine (buffer);
+        
+        Display ("KEY=", key);
+        Display ("IV=", iv);
+        Display ("CT=", redText);
+        
+        aes.SetDecryptionKey (key, AES::KEY_128BITS);
+        
+        for (j = 0; j < 10000; ++j) 
+        {
+            aes.CryptCBC (AES::DECRYPT, AES::BLOCK_SIZE, iv, redText, blackText); 
+            
+            memcpy (iv, redText, sizeof(iv));
+            
+            memcpy (redText, blackText, sizeof(redText));
+        }
+            
+        Display ("PT=", blackText);
+        
+        UART0::GetInstance()->WriteLine ("");    
+       
+        for (j = 0; j < 16; ++j)
+            key[j] = key[j] ^ blackText[j];
+    }
+    
+    UART0::GetInstance()->WriteLine("Final PT=9B8FB71E035CEFF9CBFA1346E5ACEFE0");    
+    
+    
+    UART0::GetInstance()->WriteLine ("\r\n\r\nCipher Block Chaining (CBC) Mode - DECRYPTION / Monte Carlo Test");
+    
+    // NIST Monte Carlo Test for key size = 256. 
+    UART0::GetInstance()->WriteLine ("Key Size = 256");
+    
+    memset (key, 0, sizeof(key));
+    memset (redText, 0, sizeof(redText));
+    memset (iv, 0, sizeof(iv));
+    
+    for (i = 0; i < count; ++i) 
+    {
+        // We'll show the results in the same format as the test vectors document.
+        sprintf (buffer, "I=%lu", i);
+        UART0::GetInstance()->WriteLine (buffer);
+        
+        Display ("KEY=", key, 32);
+        Display ("IV=", iv);
+        Display ("CT=", redText);
+        
+        aes.SetDecryptionKey (key, AES::KEY_256BITS);
+        
+        for (j = 0; j < 10000; ++j) 
+        {
+            aes.CryptCBC (AES::DECRYPT, AES::BLOCK_SIZE, iv, redText, blackText); 
+            
+            memcpy (iv, redText, sizeof(iv));
+            
+            memcpy (redText, blackText, sizeof(redText));
+            
+            if (j == 9998)
+                memcpy (expandedKey, blackText, sizeof(expandedKey));             
+        }
+            
+        Display ("PT=", blackText);
+        
+        UART0::GetInstance()->WriteLine ("");    
+       
+        for (j = 0; j < 16; ++j)
+        {
+            key[j] = key[j] ^ expandedKey[j];
+            key[j + 16] = key[j + 16] ^ blackText[j];
+        } // END for
+    }
+    
+    UART0::GetInstance()->WriteLine("Final PT=CD6429CF3F81F8B4F82BC627A8283096");    
+    
+    
+    UART0::GetInstance()->WriteLine ("\r\n\r\nCipher Block Chaining (CBC) Mode - ENCRYPTION / Known Answer Test");
+    
+    // NIST Monte Carlo Test for key size = 256. 
+    UART0::GetInstance()->WriteLine ("Key Size = 256");
+    
+    memset (key, 0, sizeof(key));
+    const uint8_t key1[32] = { 0x53, 0x66, 0x04, 0xbf, 0xc0, 0x8f, 0x9b, 0xb0, 0x81, 0xb7, 0xa4, 0x00, 0x75, 0x41, 0x96, 0x5c, 0x00, 0x05, 0x18, 0x5c, 0x6d, 0xbe, 0x59, 0xd0, 0x5a, 0xc8, 0x44, 0xa7, 0xd7, 0x40, 0xad, 0x0f };
+    memset (blackKATText, 0, sizeof(blackKATText));
+    memset (iv, 0, sizeof(iv));
+    
+    Display ("KEY=", key1, 32);
+    Display ("IV=", iv);
+    Display ("PT=", blackKATText, 32);
+    
+    aes.SetEncryptionKey (key1, AES::KEY_256BITS);
+    
+    aes.CryptCBC (AES::ENCRYPT, 2 * AES::BLOCK_SIZE, iv, blackKATText, redKATText); 
+        
+    Display ("CT=", redKATText, 32);
+    
+    for (;;);       
+}

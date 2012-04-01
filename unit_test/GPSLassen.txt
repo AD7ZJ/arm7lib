@@ -1,0 +1,198 @@
+/***************************************************************************
+ *                                                                         *
+ *                              ESS, Inc.                                  *
+ *                                                                         *
+ *    ESS, Inc. CONFIDENTIAL AND PROPRIETARY.  This source is the sole     *
+ *    property of ESS, Inc.  Reproduction or utilization of this source    * 
+ *    in whole or in part is forbidden without the written consent of      *
+ *    ESS, Inc.                                                            *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ *            (c) Copyright 1997-2008 -- All Rights Reserved               *
+ *                                                                         *
+ ***************************************************************************
+ *                                                                         *
+ * Filename:     GPSLassen.txt                                             *
+ *                                                                         *
+ ***************************************************************************/
+
+Unit Test Case
+--------------
+1. Verify the correct conversion from ENU (East/North/Up) velocity vectors
+to speed/heading.  The calculated speed/heading values are stored in the 
+GPSData class and in units common to all GPS engine platforms.
+
+2. Verify the parsing of the SiRF Star III binary message into a common
+data structure.
+
+
+External Tools
+--------------
+http://www.unitconversion.org/unit_converter/velocity-ex.html
+
+See the 'GPSData.xls' spread sheet.
+
+
+1. Test Results
+---------------
+The value in the () is the reference standard and is calculated in
+the 'GPSData.xls' spread sheet.  This test verifies the correct speed in
+knots and MPH in all quadrants.  The values are in units of 0.1 knots,
+0.1 MPH, and 0.01 degrees.  NOTE: There are tiny errors of 0.01 degrees in
+some cases.  This results from the double floating point functions within 
+Excel vs. the single floating point sof library in the ARM domain.
+
+
+System booted
+0       0 kts (0)       0 mph (0)        0 degrees (0)
+1       750 kts (750)   863 mph (863)    9000 degrees (9000)
+2       1100 kts (1100) 1265 mph (1265)  27000 degrees (27000)
+3       500 kts (500)   575 mph (575)    0 degrees (0)
+4       99 kts (100)    114 mph (115)    18000 degrees (18000)
+5       825 kts (825)   949 mph (949)    4500 degrees (4500)
+6       687 kts (687)   790 mph (790)    31500 degrees (31500)
+7       550 kts (550)   632 mph (632)    22500 degrees (22500)
+8       1237 kts (1237) 1423 mph (1423)  13500 degrees (13500)
+9       1167 kts (1167) 1342 mph (1342)  8905 degrees (8904)
+10      1167 kts (1167) 1342 mph (1342)  27095 degrees (27095)
+11      510 kts (510)   586 mph (586)    7869 degrees (7869)
+12      510 kts (510)   586 mph (586)    1131 degrees (1130)
+13      500 kts (503)   575 mph (579)    223 degrees (222)
+14      500 kts (503)   575 mph (579)    35777 degrees (35777)
+
+
+2. Test Results
+---------------
+431829 3D fix 05:41:30 3/31/2008 1473 106904000 336187552 -1117339392 29 7 0x0 0 deg @ 0 knots 1685 
+432763 3D fix 05:41:31 3/31/2008 1473 106905000 336187552 -1117339392 33 7 0x0 0 deg @ 0 knots 1685 
+433740 3D fix 05:41:32 3/31/2008 1473 106906000 336187552 -1117339392 29 8 0x0 0 deg @ 0 knots 1685 
+434757 3D fix 05:41:33 3/31/2008 1473 106907000 336187552 -1117339392 33 7 0x0 0 deg @ 0 knots 1685 
+435744 3D fix 05:41:34 3/31/2008 1473 106908000 336187552 -1117339392 29 8 0x0 0 deg @ 0 knots 1685 
+436718 3D fix 05:41:35 3/31/2008 1473 106909000 336187552 -1117339392 33 7 0x0 0 deg @ 0 knots 1685 
+437795 3D fix 05:41:36 3/31/2008 1473 106910000 336187552 -1117339392 33 7 0x0 0 deg @ 0 knots 1685 
+438707 3D fix 05:41:37 3/31/2008 1473 106911000 336187552 -1117339392 33 6 0x0 0 deg @ 0 knots 1685 
+
+Verify UTC to GPS Time of week 14 second offset.
+Verify units of latitude/longitude.
+Verify DOP and tracked sat count.
+Verify altitude in cm to feet conversion.
+
+
+1. Test Code
+------------
+typedef struct
+{
+    // Test vectors in units of meters/second where + is a north/east vector and - is a south/west vector.
+    float_t nsv, ewv;
+    
+    // Precalculated reference standard values.
+    uint32_t speedKnots, speedMPH, heading;
+} ENU;
+
+int main(void)
+{
+    uint32_t i;
+    int32_t heading;
+    float_t ewv, nsv;
+    char buffer[80];
+    GPSData gps;
+    
+    const ENU enu[] = 
+    { 
+        { 0,0,0,0,0 },
+        { 0,38.58333333,750,863,9000 },
+        { 0,-56.58888889,1100,1265,27000 },
+        { 25.72222222,0,500,575,0 },
+        { -5.144444444,0,100,115,18000 },
+        { 30,30,825,949,4500 },
+        { 25,-25,687,790,31500 },
+        { -20,-20,550,632,22500 },
+        { -45,45,1237,1423,13500 },
+        { 1,60,1167,1342,8904 },
+        { 1,-60,1167,1342,27095 },
+        { 5.144444444,25.72222222,510,586,7869 },
+        { 25.72222222,5.144444444,510,586,1130 },
+        { 25.72222222,1,503,579,222 },
+        { 25.72222222,-1,503,579,35777 }      
+    };
+    
+    
+    SystemControl::GetInstance()->Enable(SystemControl::Clock_24MHz, SystemControl::TIMER1);
+    
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    
+    UART0::GetInstance()->WriteLine("System booted");
+   
+    for (i = 0; i < sizeof(enu) / sizeof(ENU); ++i)
+    {
+        nsv = enu[i].nsv;
+        ewv = enu[i].ewv;
+        
+        gps.speed = static_cast <uint16_t> (lroundf (100.0 * sqrt(ewv * ewv + nsv * nsv)));
+        
+        // 5729.57795130 is the constant 100 * (360 degrees / 2 * PI).  100 scales the result to units of 0.01 degrees.
+        heading = lroundf (5729.577951308 * atan2(ewv, nsv));
+        
+        // Convert atan2 from range of { -pi, pi } radians to { 0, 359.99 } degrees.
+        gps.heading = static_cast <uint16_t> (heading < 0 ? heading + 36000 : heading);
+        
+        sprintf (buffer, "%ld\t%ld kts (%ld)\t%ld mph (%ld)\t %d degrees (%ld)", i, gps.SpeedKnots(), enu[i].speedKnots, gps.SpeedMPH(), enu[i].speedMPH, gps.heading, enu[i].heading);
+        UART0::GetInstance()->WriteLine(buffer);        
+    }
+    
+    for (;;);
+}
+
+2. Test Code
+------------
+bool_t GPSLassen::HasData()
+{
+    return UART1::GetInstance()->IsCharReady();
+}
+
+uint8_t GPSLassen::ReadData()
+{
+    return UART1::GetInstance()->ReadChar();
+}
+
+void GPSLassen::WriteData(uint8_t data)
+{
+    UART1::GetInstance()->WriteChar (data);
+}
+
+int main(void)
+{
+    char buffer[120];
+    
+    SystemControl::GetInstance()->Enable(SystemControl::Clock_24MHz, SystemControl::TIMER1);
+    
+    GPSLassen *gps = GPSLassen::GetInstance();
+    GPSData *gpsData = gps->Data();
+
+    // UART 0 is the console serial port, UART 1 is the GPS engine.
+    UART0::GetInstance()->Enable(UART0::BaudRate57600);
+    UART1::GetInstance()->Enable(UART1::BaudRate9600, UART1::Control8O1);
+    
+    UART0::GetInstance()->WriteLine ("GPS Engine Unit Test");
+    
+    for (;;)
+    {
+        gps->Update();
+
+        if (gps->IsDataReady())
+        {
+            sprintf (buffer, "%d:%d:%d %d/%d/%d ", gpsData->hours, gpsData->minutes, gpsData->seconds, gpsData->month, gpsData->day, gpsData->year);
+            UART0::GetInstance()->Write (buffer);
+
+            sprintf (buffer, "%ld %ld %ld %ld %d ", gpsData->weekNumber, gpsData->timeOfWeek, gpsData->latitude, gpsData->longitude, gpsData->dop);
+            UART0::GetInstance()->Write (buffer);
+            
+            sprintf (buffer, "%ld %ld ", gpsData->altitude, gpsData->AltitudeFeet());
+            UART0::GetInstance()->Write (buffer);  
+            
+            sprintf (buffer, "%d %d", gpsData->speed, gpsData->heading);
+            UART0::GetInstance()->WriteLine (buffer);
+        } // END if
+    } // END for
+}

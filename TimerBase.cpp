@@ -33,7 +33,7 @@ TimerBase::TimerBase()
 {
     this->timerTick = 0;
     this->timerAccum = 0;
-    //this->timerTickCallback = NULL;
+    this->timerTickCallback = NULL;
 }
 
 /**
@@ -50,8 +50,9 @@ void TimerBase::TimerTick()
     // Save the remainder (values less than 1mS).
     this->timerAccum %= 1000; 
     
-    // run the callback function
-    TimerTickCallback();
+    // Only callback if the user set the callback.
+    if (this->timerTickCallback != NULL)
+        this->timerTickCallback();
 }
 
 /**
@@ -80,10 +81,10 @@ uint32_t TimerBase::GetTick()
  * 
  * @param timerTickCallback pointer to callback function
  */
-/*void TimerBase::SetCallback(void (*timerTickCallback)() )
+void TimerBase::SetCallback(void (*timerTickCallback)() )
 {
     this->timerTickCallback = timerTickCallback;
-} */
+}
 
 
 

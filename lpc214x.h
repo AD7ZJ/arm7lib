@@ -467,6 +467,7 @@ const uint32_t TxTCR_COUNTER_ENABLE = (1 << 0);
 const uint32_t TxTCR_COUNTER_RESET = (1 << 1);
 const uint32_t TxMCR_INT_ON_MR0 = (1 << 0);
 const uint32_t TxMCR_RESET_ON_MR0 = (1 << 1);
+const uint32_t TxMCR_STOP_ON_MR0 = (1 << 2);
 
 const uint32_t TxIR_MR0_FLAG = (1 << 0);
 const uint32_t TxIR_MR1_FLAG = (1 << 1);

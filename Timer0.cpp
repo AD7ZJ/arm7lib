@@ -61,6 +61,17 @@ void Timer0::Enable()
 }
 
 /**
+ *   Enable Timer0 without any interrrupt setup
+ */
+void Timer0::EnableWithoutInt()
+{
+    SetPeriod (1000);
+
+    T0MCR = TxMCR_RESET_ON_MR0 | TxMCR_STOP_ON_MR0;
+    T0TCR = TxTCR_COUNTER_ENABLE;
+}
+
+/**
  * Set the timer interrupt rate.
  * 
  * @param period in microseconds
@@ -86,5 +97,3 @@ void Timer0::TimerTick()
 
     TimerBase::TimerTick();
 }
-
-

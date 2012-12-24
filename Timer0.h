@@ -40,9 +40,10 @@ class Timer0 : public TimerBase
 {
 public:
     void Enable();
+    void EnableWithoutInt();
     void SetPeriod(uint32_t rate);
     void TimerTick();
-    
+
    	static Timer0 *GetInstance();
 };
 

@@ -84,10 +84,9 @@ public:
     TimerBase();
     
     uint32_t GetTick();
-    //void SetCallback(void (*timerTickCallback)() );
+    void SetCallback(void (*timerTickCallback)() );
     void SetPeriod(uint32_t rate);
     void TimerTick();
-    virtual void TimerTickCallback();
 
 private:
     /// Timer ticks in milliseconds.
@@ -100,7 +99,7 @@ private:
     uint32_t period;
     
     /// User supplied timer event callback.
-    //void (*timerTickCallback) ();
+    void (*timerTickCallback) ();
 };
 
 /** @} */
